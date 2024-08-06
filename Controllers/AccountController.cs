@@ -1,164 +1,67 @@
-using Infrastructure.Contexts;
-using Infrastructure.Entities;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using System.Net.Http;
+using System.Net.Http.Json;
 using System.Security.Claims;
 using WebApp.ViewModels;
 
+
 namespace WebApp.Controllers;
 [Authorize]
-public class AccountController(UserManager<UserEntity> userManager, ApplicationContext context) : Controller
+public class AccountController : Controller
 {
-    private readonly UserManager<UserEntity> _userManager = userManager;
-    private readonly ApplicationContext _context = context;
+    private readonly HttpClient _httpClient;
+
+    public AccountController(IHttpClientFactory httpClientFactory)
+    {
+        _httpClient = httpClientFactory.CreateClient("AuthService");
+    }
 
     public async Task<IActionResult> Details()
     {
-        var nameIdentifier = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
-        var user = await _context.Users.Include(i => i.Address).FirstOrDefaultAsync(x => x.Id == nameIdentifier);
-
-        
-
-        var viewModel = new AccountDetailsViewModel
+        var response = await _httpClient.GetAsync("/api/account/details");
+        if (response.IsSuccessStatusCode)
         {
-            Basic = new AccountBasicInfo
-            {
-                FirstName = user!.FirstName,
-                LastName = user.LastName,
-                Email = user.Email!,
-                PhoneNumber = user.PhoneNumber,
-                Bio = user.Bio,
-
-            },
-            Address = new AccountAddressInfo
-            {
-                AddressLine_1 = user.Address?.AddressLine_1!,
-                AddressLine_2 = user.Address?.AddressLine_2,
-                PostalCode = user.Address?.PostalCode!,
-                City = user.Address?.City!,
-            }
-
-
-            
-        };
-
-
-
-        return View(viewModel);
+            var viewModel = await response.Content.ReadFromJsonAsync<AccountDetailsViewModel>();
+            return View(viewModel);
+        }
+        else
+        {
+            return RedirectToAction("SignIn", "Auth");
+        }
     }
 
     [HttpPost]
     public async Task<IActionResult> UpdateBasicInfo(AccountDetailsViewModel model)
     {
-        if(TryValidateModel(model.Basic!)) 
-        {
-            var user = await _userManager.GetUserAsync(User);
-            if (user != null) 
-            { 
-                user.FirstName = model.Basic!.FirstName;
-                user.LastName = model.Basic!.LastName;
-                user.Email = model.Basic!.Email;
-                user.PhoneNumber = model.Basic!.PhoneNumber;
-                user.UserName = model.Basic!. Email;
-                user.Bio = model.Basic!.Bio;
-
-                
-                var result = await _userManager.UpdateAsync(user);
-                if (result.Succeeded)
-                {
-                    TempData["StatusMessage"] = "Updated basic information successfully";
-                }
-                else
-                {
-                    TempData["StatusMessage"] = "Unable to save basic information";
-                }
-            }
-        }
-        else
-        {
-            TempData["StatusMessage"] = "Unable to save basic information";
-        }
-        
-        return RedirectToAction("Details", "Account");
+        var response = await _httpClient.PostAsJsonAsync("/api/account/updateBasicInfo", model.Basic);
+        TempData["StatusMessage"] = response.IsSuccessStatusCode ? "Updated basic information successfully" : "Unable to save basic information";
+        return RedirectToAction("Details");
     }
-
 
     [HttpPost]
     public async Task<IActionResult> UpdateAddressInfo(AccountDetailsViewModel model)
     {
-        if (TryValidateModel(model.Address!))
-        {
-            var nameIdentifier = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
-            var user = await _context.Users.Include(i => i.Address).FirstOrDefaultAsync(x => x.Id == nameIdentifier);
-            if (user != null)
-            {
-                try
-                {
-                    if (user.Address != null)
-                    {
-                        user.Address.AddressLine_1 = model.Address!.AddressLine_1;
-                        user.Address.AddressLine_2 = model.Address!.AddressLine_2;
-                        user.Address.PostalCode = model.Address!.PostalCode;
-                        user.Address.City = model.Address!.City;
-                    }
-                    else
-                    {
-                        user.Address = new AddressEntity
-                        {
-                            AddressLine_1 = model.Address!.AddressLine_1,
-                            AddressLine_2 = model.Address!.AddressLine_2,
-                            PostalCode = model.Address!.PostalCode,
-                            City = model.Address!.City
-                        };
-                    }
-                    _context.Update(user);
-                    await _context.SaveChangesAsync();
-
-                    TempData["StatusMessage"] = "Updated address information successfully";
-                }
-                catch 
-                {
-                    TempData["StatusMessage"] = "Unable to save address information";
-                }
-                
-
-               
-
-
-                
-               
-            }
-        }
-        else
-        {
-            TempData["StatusMessage"] = "Unable to save address information";
-        }
-
-        return RedirectToAction("Details", "Account");
+        var response = await _httpClient.PostAsJsonAsync("/api/account/updateAddressInfo", model.Address);
+        TempData["StatusMessage"] = response.IsSuccessStatusCode ? "Updated address information successfully" : "Unable to save address information";
+        return RedirectToAction("Details");
     }
+
     [HttpPost]
     public async Task<IActionResult> UploadProfileImage(IFormFile file)
     {
-        var user = await _userManager.GetUserAsync(User);
-        if (user != null && file != null && file.Length != 0) 
+        if (file != null && file.Length > 0)
         {
-            var fileName =$"p_{user.Id}_{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-            var filePath = Path.Combine(Directory.GetCurrentDirectory(),"wwwroot/images/uploads/profiles", fileName);
-
-            using var fs = new FileStream(filePath, FileMode.Create);
-            await file.CopyToAsync(fs);
-
-            user.ProfileImage = fileName;
-            await _userManager.UpdateAsync(user);
-            
+            using var content = new MultipartFormDataContent();
+            using var fileStream = file.OpenReadStream();
+            content.Add(new StreamContent(fileStream), "file", file.FileName);
+            var response = await _httpClient.PostAsync("/api/account/uploadProfileImage", content);
+            TempData["StatusMessage"] = response.IsSuccessStatusCode ? "Profile image uploaded successfully" : "Unable to upload profile image.";
         }
         else
         {
-            TempData["StatusMessage"] = "Unable to upload profile image.";
+            TempData["StatusMessage"] = "No file selected.";
         }
-        
-        return RedirectToAction("Details", "Account");
+        return RedirectToAction("Details");
     }
 }
