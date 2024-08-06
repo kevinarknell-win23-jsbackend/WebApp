@@ -1,4 +1,4 @@
-@model SignInViewModel
+@model AuthService.Models.SignInViewModel
 @{
     ViewData["Title"] = "Sign In";
 }
@@ -12,10 +12,12 @@
                 @ViewData["StatusMessage"]
             </div>
         }
-        
 
-        <form method="post" asp-action="SignIn" asp-controller="Auth" asp-route-ReturnUrl="@ViewData["ReturnUrl"]" novalidate>
-            <h1>Welcome back </h1>
+        
+        <form method="post" action="/api/auth/signin" novalidate>
+            @Html.AntiForgeryToken()
+
+            <h1>Welcome back</h1>
             <p>Don't have an account yet? <a asp-action="SignUp" asp-controller="Auth">Sign up here</a></p>
 
             <div class="form-content">
@@ -30,22 +32,17 @@
                     <span asp-validation-for="Password" class="text-danger"></span>
                 </div>
                 <div id="form-checkbox" class="checkbox-group">
-
                     <div class="input-group">
                         <input asp-for="IsPresistent" />
                         <label asp-for="IsPresistent"></label>
                     </div>
-                    
-
                 </div>
                 <div id="form-button">
-                    <button type="submit" class="btn btn-theme"><i class="fa.-regular fa-arrow-right-to-bracket"></i>  Sign in</button>
+                    <button type="submit" class="btn btn-theme"><i class="fa-regular fa-arrow-right-to-bracket"></i> Sign in</button>
                 </div>
             </div>
-
-
         </form>
-        
-    </div>
 
+
+    </div>
 </section>
