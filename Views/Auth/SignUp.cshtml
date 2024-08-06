@@ -1,4 +1,4 @@
-@model SignUpViewModel
+@model AuthService.Models.SignUpViewModel
 @{
     ViewData["Title"] = "Sign Up";
 }
@@ -13,10 +13,12 @@
             </div>
         }
 
+        
+        <form method="post" action="/api/auth/signup" novalidate>
+            @Html.AntiForgeryToken() 
 
-        <form method="post" asp-action="SignUp" asp-controller="Auth" novalidate>
-            <h1>Create Account </h1>
-            <p>Already have an account yet? <a asp-action="SignÍn" asp-controller="Auth">Sign in here</a></p>
+            <h1>Create Account</h1>
+            <p>Already have an account? <a asp-action="SignIn" asp-controller="Auth">Sign in here</a></p>
 
             <div class="form-content">
                 <div id="form-firstname" class="input-group">
@@ -38,31 +40,24 @@
                     <label asp-for="Password"></label>
                     <input asp-for="Password" id="Password" />
                     <span asp-validation-for="Password" class="text-danger"></span>
-
                 </div>
                 <div id="form-confirmpassword" class="input-group">
                     <label asp-for="ConfirmPassword"></label>
                     <input asp-for="ConfirmPassword" id="ConfirmPassword" />
                     <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
-
                 </div>
                 <div id="form-checkbox" class="checkbox-group">
-
                     <div class="input-group">
                         <input asp-for="TermsAndConditions" id="TermsAndConditions" />
                         <label asp-for="TermsAndConditions"></label>
                     </div>
                     <span asp-validation-for="TermsAndConditions" class="text-danger"></span>
-
                 </div>
                 <div id="form-button">
-                    <button type="submit" class="btn btn-theme"><i class="fa.-regular fa-arrow-left-to-bracket"></i>  Sign up</button>
+                    <button type="submit" class="btn btn-theme"><i class="fa-regular fa-arrow-left-to-bracket"></i> Sign up</button>
                 </div>
             </div>
-
-
         </form>
 
     </div>
-
 </section>
